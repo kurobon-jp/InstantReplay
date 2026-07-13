@@ -204,18 +204,21 @@ impl Stream {
                         if let Some(sample) = sample_rx.recv().await {
                             unsafe { stream_cap.ProcessSample(&*sample)? };
                         } else {
-                            unsafe {
+                            if let Err(e) = unsafe {
                                 stream_cap.PlaceMarker(
                                     MFSTREAMSINK_MARKER_ENDOFSEGMENT,
                                     std::ptr::null(),
                                     std::ptr::null(),
-                                )?
+                                )
+                            } {
+                                println!("PlaceMarker failed (ignored): {:?}", e);
                             };
                             if let Some(finish_tx) = finish_tx.take() {
                                 finish_tx
                                     .send(())
                                     .map_err(|_e| WindowsError::FinishSignalSendFailed)?
                             };
+                            break;
                         }
                     }
                     _ => {
